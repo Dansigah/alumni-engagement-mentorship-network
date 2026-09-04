@@ -1,0 +1,56 @@
+ALUMNI ENGAGEMENT AND MENTORSHIP NETWORK - PROJECT HANDOVER
+
+CURRENT FUNCTIONAL STATUS
+
+Implemented and tested:
+- Student registration and login
+- Alumni registration with pending Admin approval
+- Admin Alumni approval and account-status management
+- Approved Alumni login
+- Alumni professional profile
+- Skills
+- Employment history
+- Mentoring availability
+- Student mentor search and profile
+- Mentorship requests
+- Mentorship request acceptance and rejection
+- Student notifications
+- Online mentoring sessions
+- Physical mentoring sessions
+- Session scheduling
+- Session completion
+- Session cancellation
+- Student session view
+- Session notifications
+
+CURRENT TESTING STOP POINT
+
+Student: Thivi
+Alumni: Thamil
+Current feature being tested: REFERRAL REQUESTS
+
+NEXT MANUAL TEST
+
+Open: Student -> Referral Requests
+
+Create a referral request with:
+- Alumni: Thamil
+- Company: Virtusa
+- Position: Software Engineer Intern
+- Message: I would like to request a referral for this position.
+
+Expected result:
+- The request appears with PENDING status.
+
+Continue testing:
+1. Confirm the Alumni receives the referral request.
+2. Approve and reject separate referral requests as the Alumni.
+3. Confirm the Student sees each updated status.
+4. Confirm the Student receives the appropriate notification.
+5. Test referral ownership and security restrictions.
+6. Test Events.
+7. Test Admin functions.
+8. Test Reports.
+9. Complete final regression testing.
+
+No passwords or credentials are included in this handover document.

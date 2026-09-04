@@ -1,0 +1,24 @@
+# Secrets / env
+.env
+.env.*
+*.env
+
+# Node
+node_modules/
+dist/
+
+# Java / Maven
+target/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local temp/cache
+*.tmp
+*.temp

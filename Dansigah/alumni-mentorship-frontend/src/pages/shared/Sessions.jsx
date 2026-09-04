@@ -1,0 +1,142 @@
+import { useEffect, useState } from "react";
+import api from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
+import LoadingState from "../../components/common/LoadingState";
+import EmptyState from "../../components/common/EmptyState";
+import ErrorState from "../../components/common/ErrorState";
+
+const emptyForm = { studentId: "", topic: "", date: "", time: "", mode: "ONLINE", meetingLink: "", venue: "", notes: "" };
+
+export default function Sessions() {
+  const { user } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [people, setPeople] = useState({});
+  const [acceptedStudents, setAcceptedStudents] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const sessionResponse = await api.get(`/sessions/user/${user.id}`);
+      const sessions = Array.isArray(sessionResponse.data) ? sessionResponse.data : [];
+      setRows(sessions);
+
+      if (user.role === "ALUMNI") {
+        const { data } = await api.get("/sessions/accepted-students");
+        const students = Array.isArray(data) ? data : [];
+        setAcceptedStudents(students);
+        setPeople(Object.fromEntries(students.map((student) => [student.id, student])));
+      } else {
+        const alumniIds = [...new Set(sessions.map((session) => session.alumniId).filter(Boolean))];
+        const responses = await Promise.all(alumniIds.map((id) => api.get(`/users/${id}`)));
+        setPeople(Object.fromEntries(responses.map((response) => [response.data.id, response.data])));
+      }
+    } catch {
+      setError("Unable to load mentorship sessions.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, [user.id, user.role]);
+
+  const change = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const create = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.post("/sessions", {
+        studentId: Number(form.studentId),
+        alumniId: user.id,
+        topic: form.topic,
+        sessionDate: `${form.date}T${form.time}:00`,
+        sessionTime: `${form.time}:00`,
+        mode: form.mode,
+        meetingLink: form.mode === "ONLINE" ? form.meetingLink : null,
+        venue: form.mode === "PHYSICAL" ? form.venue : null,
+        notes: form.notes,
+      });
+      setForm(emptyForm);
+      setSuccess("Session scheduled successfully.");
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Unable to schedule session.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateStatus = async (id, status) => {
+    if (updatingId != null) return;
+    setUpdatingId(id);
+    setError("");
+    setSuccess("");
+    try {
+      await api.put(`/sessions/${id}/status?status=${status}`);
+      setSuccess(`Session marked ${status.toLowerCase()}.`);
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Unable to update session.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const dateOf = (session) => session.sessionDate?.slice(0, 10) || "Date not scheduled";
+  const timeOf = (session) => session.sessionTime?.slice(0, 5) || session.sessionDate?.slice(11, 16) || "Time not scheduled";
+
+  return (
+    <>
+      <div className="page-title"><div><h2>Mentorship Sessions</h2><p>View and manage your mentoring sessions.</p></div></div>
+      {error && <ErrorState message={error} onRetry={load} />}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      {user.role === "ALUMNI" && (
+        <section className="card border-0 shadow-sm p-4 mb-4">
+          <h4>Schedule a Session</h4>
+          {acceptedStudents.length ? (
+            <form className="row g-3" onSubmit={create}>
+              <div className="col-md-6"><label className="form-label">Student</label><select className="form-select" required value={form.studentId} onChange={(e) => change("studentId", e.target.value)}><option value="">Select accepted student</option>{acceptedStudents.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}</select></div>
+              <div className="col-md-6"><label className="form-label">Session Topic</label><input className="form-control" required value={form.topic} onChange={(e) => change("topic", e.target.value)} /></div>
+              <div className="col-md-4"><label className="form-label">Date</label><input className="form-control" required type="date" value={form.date} onChange={(e) => change("date", e.target.value)} /></div>
+              <div className="col-md-4"><label className="form-label">Time</label><input className="form-control" required type="time" value={form.time} onChange={(e) => change("time", e.target.value)} /></div>
+              <div className="col-md-4"><label className="form-label">Mode</label><select className="form-select" value={form.mode} onChange={(e) => change("mode", e.target.value)}><option value="ONLINE">Online</option><option value="PHYSICAL">Physical</option></select></div>
+              {form.mode === "ONLINE" ? <div className="col-12"><label className="form-label">Meeting Link</label><input className="form-control" required type="url" placeholder="https://..." value={form.meetingLink} onChange={(e) => change("meetingLink", e.target.value)} /></div> : <div className="col-12"><label className="form-label">Venue</label><input className="form-control" required value={form.venue} onChange={(e) => change("venue", e.target.value)} /></div>}
+              <div className="col-12"><label className="form-label">Notes (optional)</label><textarea className="form-control" value={form.notes} onChange={(e) => change("notes", e.target.value)} /></div>
+              <div className="col-12"><button className="btn btn-primary" disabled={saving}><i className="bi bi-calendar-plus me-2" />{saving ? "Scheduling..." : "Schedule Session"}</button></div>
+            </form>
+          ) : <EmptyState icon="bi-person-check" title="No accepted students" message="Accept a mentorship request before scheduling a session." />}
+        </section>
+      )}
+
+      {loading ? <LoadingState message="Loading mentorship sessions..." /> : rows.length ? (
+        <div className="row g-4">{rows.map((session) => {
+          const person = people[user.role === "STUDENT" ? session.alumniId : session.studentId];
+          const status = String(session.status || "SCHEDULED").toUpperCase();
+          return <div className="col-lg-6" key={session.id}><article className="card border-0 shadow-sm h-100 p-4">
+            <div className="d-flex justify-content-between"><div className="session-icon"><i className="bi bi-calendar-check" /></div><span className={`badge status-${status.toLowerCase()}`}>{status}</span></div>
+            <h4 className="mt-3">{session.topic || session.title || "Mentorship Session"}</h4>
+            <p className="fw-semibold mb-2">{user.role === "STUDENT" ? `Mentor: ${person?.name || `Alumni #${session.alumniId}`}` : `Student: ${person?.name || `Student #${session.studentId}`}`}</p>
+            <p className="mb-2"><i className="bi bi-clock me-2 text-primary" />{dateOf(session)} at {timeOf(session)}</p>
+            <p className="mb-2"><i className="bi bi-geo-alt me-2 text-primary" />{session.mode || "Mode not provided"}</p>
+            {session.mode === "ONLINE" && session.meetingLink && <a className="btn btn-sm btn-outline-primary align-self-start mb-3" href={session.meetingLink} target="_blank" rel="noreferrer">Join Meeting</a>}
+            {session.mode === "PHYSICAL" && <p className="text-muted">Venue: {session.venue}</p>}
+            {(session.notes || session.description) && <p className="text-muted">{session.notes || session.description}</p>}
+            {user.role === "ALUMNI" && status === "SCHEDULED" && <div className="mt-auto pt-2"><button className="btn btn-sm btn-success me-2" disabled={updatingId === session.id} onClick={() => updateStatus(session.id, "COMPLETED")}>Mark Completed</button><button className="btn btn-sm btn-outline-danger" disabled={updatingId === session.id} onClick={() => updateStatus(session.id, "CANCELLED")}>Cancel</button></div>}
+          </article></div>;
+        })}</div>
+      ) : <EmptyState icon="bi-calendar-x" title="No sessions yet" message="Scheduled sessions will appear here." />}
+    </>
+  );
+}
