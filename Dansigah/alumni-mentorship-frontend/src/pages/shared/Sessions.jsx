@@ -1,3 +1,4 @@
+import TimeInput, { toApiTime } from "../../components/common/TimeInput";
 import { useEffect, useState } from "react";
 import api from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
@@ -5,14 +6,27 @@ import LoadingState from "../../components/common/LoadingState";
 import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 
-const emptyForm = { studentId: "", topic: "", date: "", time: "", mode: "ONLINE", meetingLink: "", venue: "", notes: "" };
+const emptyForm = { studentId: "", topic: "", date: "", hour: "", minute: "", period: "AM", mode: "ONLINE", meetingLink: "", venue: "", notes: "" };
 
+const matchingStudents = (students, search) => {
+  const term = search.trim().toLowerCase();
+  return students.filter((student) => student.id != null &&
+    [student.name, student.email].some((value) => String(value ?? "").toLowerCase().includes(term)));
+};
+const timeOf = (session) => {
+  const time = session.sessionTime?.slice(0, 5) || session.sessionDate?.slice(11, 16);
+  if (!time || !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time)) return "Time not scheduled";
+  const [hour, minute] = time.split(":");
+  return `${String(Number(hour) % 12 || 12).padStart(2, "0")}:${minute} ${Number(hour) < 12 ? "AM" : "PM"}`;
+};
 export default function Sessions() {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [people, setPeople] = useState({});
   const [acceptedStudents, setAcceptedStudents] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [showStudents, setShowStudents] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
@@ -50,24 +64,35 @@ export default function Sessions() {
 
   const change = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
+  const selectedStudent = acceptedStudents.find((student) => student.id != null && String(student.id) === form.studentId);
+  const suggestions = matchingStudents(acceptedStudents, selectedStudent ? "" : studentSearch);
+  const selectStudent = (student) => {
+    change("studentId", String(student.id));
+    setStudentSearch(student.name || student.email || `Student #${student.id}`);
+    setShowStudents(false);
+  };
   const create = async (event) => {
     event.preventDefault();
+    if (!selectedStudent) { setError("Select a student from the accepted-student suggestions."); return; }
     setSaving(true);
     setError("");
     setSuccess("");
     try {
+      const time = toApiTime(form.hour, form.minute, form.period);
       await api.post("/sessions", {
         studentId: Number(form.studentId),
         alumniId: user.id,
         topic: form.topic,
-        sessionDate: `${form.date}T${form.time}:00`,
-        sessionTime: `${form.time}:00`,
+        sessionDate: `${form.date}T${time}`,
+        sessionTime: time,
         mode: form.mode,
         meetingLink: form.mode === "ONLINE" ? form.meetingLink : null,
         venue: form.mode === "PHYSICAL" ? form.venue : null,
         notes: form.notes,
       });
       setForm(emptyForm);
+      setStudentSearch("");
+      setShowStudents(false);
       setSuccess("Session scheduled successfully.");
       await load();
     } catch (requestError) {
@@ -94,7 +119,6 @@ export default function Sessions() {
   };
 
   const dateOf = (session) => session.sessionDate?.slice(0, 10) || "Date not scheduled";
-  const timeOf = (session) => session.sessionTime?.slice(0, 5) || session.sessionDate?.slice(11, 16) || "Time not scheduled";
 
   return (
     <>
@@ -107,14 +131,43 @@ export default function Sessions() {
           <h4>Schedule a Session</h4>
           {acceptedStudents.length ? (
             <form className="row g-3" onSubmit={create}>
-              <div className="col-md-6"><label className="form-label">Student</label><select className="form-select" required value={form.studentId} onChange={(e) => change("studentId", e.target.value)}><option value="">Select accepted student</option>{acceptedStudents.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}</select></div>
+              <div className="col-md-6">
+                <label className="form-label" htmlFor="session-student-search">Student</label>
+                <div className="position-relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowStudents(false); }}>
+                  <div className="input-group">
+                    <input id="session-student-search" className="form-control" type="text" autoComplete="off" required
+                      placeholder="Search accepted students by name or email" value={studentSearch}
+                      aria-controls="session-student-suggestions" aria-expanded={showStudents}
+                      onFocus={() => setShowStudents(true)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setShowStudents(false); }}
+                      onChange={(e) => { setStudentSearch(e.target.value); change("studentId", ""); setShowStudents(true); }} />
+                    <button type="button" className="btn btn-outline-secondary" aria-label="Show student suggestions"
+                      aria-expanded={showStudents} aria-controls="session-student-suggestions" onClick={() => setShowStudents((open) => !open)}>
+                      <i className="bi bi-chevron-down" aria-hidden="true" />
+                    </button>
+                  </div>
+                  {showStudents && <div id="session-student-suggestions" className="list-group position-absolute w-100 shadow-sm"
+                    style={{ zIndex: 5, maxHeight: "240px", overflowY: "auto" }}>
+                    {suggestions.length ? suggestions.map((student) => (
+                      <button key={student.id} type="button" className="list-group-item list-group-item-action"
+                        onClick={() => selectStudent(student)}>
+                        <span className="d-block fw-semibold">{student.name || `Student #${student.id}`}</span>
+                        {student.email && <small className="text-muted text-break">{student.email}</small>}
+                      </button>
+                    )) : <div className="list-group-item text-muted">No matching accepted students.</div>}
+                  </div>}
+                </div>
+                {studentSearch && !selectedStudent && <small className="text-muted">Choose a suggestion to select the student.</small>}
+              </div>
               <div className="col-md-6"><label className="form-label">Session Topic</label><input className="form-control" required value={form.topic} onChange={(e) => change("topic", e.target.value)} /></div>
               <div className="col-md-4"><label className="form-label">Date</label><input className="form-control" required type="date" value={form.date} onChange={(e) => change("date", e.target.value)} /></div>
-              <div className="col-md-4"><label className="form-label">Time</label><input className="form-control" required type="time" value={form.time} onChange={(e) => change("time", e.target.value)} /></div>
+              <div className="col-md-4">
+                <TimeInput value={form} onChange={change} />
+              </div>
               <div className="col-md-4"><label className="form-label">Mode</label><select className="form-select" value={form.mode} onChange={(e) => change("mode", e.target.value)}><option value="ONLINE">Online</option><option value="PHYSICAL">Physical</option></select></div>
               {form.mode === "ONLINE" ? <div className="col-12"><label className="form-label">Meeting Link</label><input className="form-control" required type="url" placeholder="https://..." value={form.meetingLink} onChange={(e) => change("meetingLink", e.target.value)} /></div> : <div className="col-12"><label className="form-label">Venue</label><input className="form-control" required value={form.venue} onChange={(e) => change("venue", e.target.value)} /></div>}
               <div className="col-12"><label className="form-label">Notes (optional)</label><textarea className="form-control" value={form.notes} onChange={(e) => change("notes", e.target.value)} /></div>
-              <div className="col-12"><button className="btn btn-primary" disabled={saving}><i className="bi bi-calendar-plus me-2" />{saving ? "Scheduling..." : "Schedule Session"}</button></div>
+              <div className="col-12"><button className="btn btn-primary" disabled={saving || !selectedStudent}><i className="bi bi-calendar-plus me-2" />{saving ? "Scheduling..." : "Schedule Session"}</button></div>
             </form>
           ) : <EmptyState icon="bi-person-check" title="No accepted students" message="Accept a mentorship request before scheduling a session." />}
         </section>

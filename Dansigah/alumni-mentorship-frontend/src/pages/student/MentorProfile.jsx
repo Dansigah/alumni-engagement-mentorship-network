@@ -1,3 +1,4 @@
+import MentorshipRequestForm from "../../components/common/MentorshipRequestForm";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../../api/client";
@@ -9,6 +10,7 @@ import ErrorState from "../../components/common/ErrorState";
 
 export default function MentorProfile() {
   const { id } = useParams();
+  const [requestingId, setRequestingId] = useState(null);
   const { user } = useAuth();
   const [mentor, setMentor] = useState(null);
   const [profile, setProfile] = useState({});
@@ -43,15 +45,16 @@ export default function MentorProfile() {
     return () => { active = false; };
   }, [id]);
 
-  const request = async () => {
+  const request = async (requestMessage) => {
     setMessage("");
     try {
       await api.post("/mentorships", {
         studentId: user.id,
         alumniId: Number(id),
-        message: "I would like to request mentorship.",
+        message: requestMessage,
       });
       setMessage("Mentorship request sent successfully.");
+      setRequestingId(null);
     } catch (requestError) {
       setMessage(requestError.response?.data?.message || "Unable to send request.");
     }
@@ -69,6 +72,7 @@ export default function MentorProfile() {
         action={<Link className="btn btn-outline-primary" to="/student/mentors"><i className="bi bi-arrow-left me-2" />Back to Mentors</Link>}
       />
       {message && <div className="alert alert-info">{message}</div>}
+      {requestingId != null && <MentorshipRequestForm key={requestingId} onSubmit={request} onCancel={() => setRequestingId(null)} />}
       <div className="row g-4">
         <div className="col-lg-4">
           <section className="card text-center p-4">
@@ -76,7 +80,7 @@ export default function MentorProfile() {
             <h3>{mentor.name}</h3>
             <p className="text-muted">{profile.currentPosition || "Position not provided"}{profile.currentCompany && ` at ${profile.currentCompany}`}</p>
             <span className={`badge mx-auto mb-3 ${profile.mentoringAvailable ? "status-active" : "text-bg-light"}`}>{profile.mentoringAvailable ? "Available for Mentoring" : "Not currently available"}</span>
-            <button className="btn btn-primary" onClick={request}><i className="bi bi-person-plus me-2" />Request Mentorship</button>
+            <button className="btn btn-primary" onClick={() => setRequestingId(Number(id))}><i className="bi bi-person-plus me-2" />Request Mentorship</button>
           </section>
           <section className="card p-4 mt-4">
             <h4>Professional Details</h4>
@@ -98,7 +102,7 @@ export default function MentorProfile() {
           </section>
           <section className="card p-4">
             <h4>Employment History</h4>
-            {employment.length ? employment.map((item) => <article className="employment-item" key={item.id}><div><h5>{item.jobTitle}</h5><p className="mb-1 fw-semibold">{item.companyName}</p><small>{item.startDate} — {item.currentlyWorking ? "Present" : item.endDate || "Not specified"}</small>{item.description && <p className="mt-2 mb-0 text-muted">{item.description}</p>}</div></article>) : <EmptyState icon="bi-briefcase" title="No employment history" message="Employment information has not been added yet." />}
+            {employment.length ? employment.map((item) => <article className="employment-item" key={item.id}><div><h5>{item.jobTitle}</h5><p className="mb-1 fw-semibold">{item.companyName}</p><small>{item.startDate} â€” {item.currentlyWorking ? "Present" : item.endDate || "Not specified"}</small>{item.description && <p className="mt-2 mb-0 text-muted">{item.description}</p>}</div></article>) : <EmptyState icon="bi-briefcase" title="No employment history" message="Employment information has not been added yet." />}
           </section>
         </div>
       </div>

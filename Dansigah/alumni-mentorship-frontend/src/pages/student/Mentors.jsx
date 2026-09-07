@@ -1,3 +1,4 @@
+import MentorshipRequestForm from "../../components/common/MentorshipRequestForm";
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
@@ -6,6 +7,7 @@ import LoadingState from "../../components/common/LoadingState";
 import EmptyState from "../../components/common/EmptyState";
 import ErrorState from "../../components/common/ErrorState";
 export default function Mentors() {
+  const [requestingId, setRequestingId] = useState(null);
   const { user } = useAuth(),
     [mentors, setMentors] = useState([]),
     [search, setSearch] = useState(""),
@@ -36,14 +38,14 @@ export default function Mentors() {
       ].some((value) => String(value ?? "").toLowerCase().includes(term)),
     );
   }, [mentors, search]);
-  const request = (id) =>
+  const request = (id, requestMessage) =>
     api
       .post("/mentorships", {
         studentId: user.id,
         alumniId: id,
-        message: "I would like to request mentorship.",
+        message: requestMessage,
       })
-      .then(() => setMessage("Mentorship request sent successfully."))
+      .then(() => { setMessage("Mentorship request sent successfully."); setRequestingId(null); })
       .catch((e) =>
         setMessage(e.response?.data?.message || "Unable to send request."),
       );
@@ -56,6 +58,7 @@ export default function Mentors() {
         </div>
       </div>
       {message && <div className="alert alert-info">{message}</div>}
+      {requestingId != null && <MentorshipRequestForm key={requestingId} onSubmit={(text) => request(requestingId, text)} onCancel={() => setRequestingId(null)} />}
       {error && <ErrorState message={error} />}
       <div className="card border-0 shadow-sm p-3 mb-4">
         <div className="input-group">
@@ -77,7 +80,7 @@ export default function Mentors() {
           {list.length ? (
             list.map((m) => (
               <div className="col-xl-4 col-md-6" key={m.id}>
-                <MentorCard mentor={m} onRequest={request} />
+                <MentorCard mentor={m} onRequest={setRequestingId} />
               </div>
             ))
           ) : (

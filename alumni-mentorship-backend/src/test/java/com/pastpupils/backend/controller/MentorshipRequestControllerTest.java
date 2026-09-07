@@ -82,6 +82,79 @@ class MentorshipRequestControllerTest {
         verifyNoInteractions(notifications);
     }
 
+    @Test
+    void customStudentMessageIsSavedAndReturnedToAlumniUnchanged() {
+        User student = user(3L, "STUDENT", "Student");
+        when(access.requireRole("STUDENT")).thenReturn(student);
+        String message = "I would like Java and Spring Boot guidance.\nPlease help me prepare for internships.";
+        request.setMessage(message);
+        MentorshipRequest saved = controller.create(request);
+        assertEquals(message, saved.getMessage());
+        assertEquals("PENDING", saved.getStatus());
+        verify(requests).save(request);
+        when(requests.findByAlumniId(8L)).thenReturn(java.util.List.of(saved));
+        assertEquals(message, controller.alumni(8L).get(0).getMessage());
+        verify(access).requireSelfOrAdmin(8L);
+    }
+    @Test
+    void nullMessageIsRejected() throws Exception {
+        assertInvalidMessage(null);
+    }
+
+    @Test
+    void emptyMessageIsRejected() throws Exception {
+        assertInvalidMessage("");
+    }
+
+    @Test
+    void whitespaceOnlyMessageIsRejected() throws Exception {
+        assertInvalidMessage("     ");
+    }
+
+    @Test
+    void messageOver2000CharactersIsRejected() throws Exception {
+        assertInvalidMessage("a".repeat(2001));
+    }
+
+    private void assertInvalidMessage(String message) throws Exception {
+        when(access.requireRole("STUDENT")).thenReturn(user(3L, "STUDENT", "Student"));
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler()).build();
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("studentId", 3L);
+        payload.put("alumniId", 8L);
+        payload.put("message", message);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/mentorships")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload)))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        verify(requests, never()).save(any());
+        verifyNoInteractions(notifications);
+    }
+
+    @Test
+    void surroundingWhitespaceIsTrimmedBeforePersistence() {
+        when(access.requireRole("STUDENT")).thenReturn(user(3L, "STUDENT", "Student"));
+        String message = "Java guidance.\nPlease help with internships.";
+        request.setMessage(" \t" + message + "\n ");
+
+        assertEquals(message, controller.create(request).getMessage());
+        verify(requests).save(argThat(saved -> message.equals(saved.getMessage())));
+        verify(notifications).create(8L, "New mentorship request received");
+    }
+
+    @Test
+    void exactly2000CharactersAfterTrimmingAreAccepted() {
+        when(access.requireRole("STUDENT")).thenReturn(user(3L, "STUDENT", "Student"));
+        String message = "a".repeat(2000);
+        request.setMessage(" " + message + " ");
+
+        assertEquals(message, controller.create(request).getMessage());
+        assertEquals("PENDING", request.getStatus());
+        verify(requests).save(request);
+        verify(notifications).create(8L, "New mentorship request received");
+    }
+
     private User user(Long id, String role, String name) {
         User user = new User();
         user.setId(id);

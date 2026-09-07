@@ -48,6 +48,12 @@ public class MentorshipRequestController {
         User current = access.requireRole("STUDENT");
         if (r.getStudentId() == null || !current.getId().equals(r.getStudentId()))
             throw access.forbidden();
+        String message = r.getMessage() == null ? "" : r.getMessage().trim();
+        if (message.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mentorship request message is required");
+        if (message.length() > 2000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mentorship request message must not exceed 2000 characters");
+        r.setMessage(message);
         User mentor = users.findById(r.getAlumniId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Alumni not found"));
         if (!"ALUMNI".equals(mentor.getRole()))
             throw new RuntimeException("Selected mentor is not an Alumni");

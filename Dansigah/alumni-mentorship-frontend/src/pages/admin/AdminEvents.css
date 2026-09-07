@@ -1,0 +1,23 @@
+.event-time-field > [role="group"] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: .375rem !important;
+  width: 17rem;
+  max-width: 100%;
+}
+.event-date-field > .form-control,
+.event-time-field .form-control,
+.event-time-field .form-select {
+  height: 46px;
+  min-width: 0;
+  border-radius: .55rem;
+}
+.event-time-field .form-control {
+  text-align: center;
+  padding-inline: .5rem;
+}
+.event-time-field [role="group"] > span {
+  text-align: center;
+  line-height: 1;
+}

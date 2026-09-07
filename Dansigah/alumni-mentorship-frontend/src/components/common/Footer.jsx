@@ -9,9 +9,8 @@ export default function Footer() {
           <p>Building meaningful connections between students and alumni.</p>
         </div>
         <div><h6>Explore</h6><Link to="/about">About</Link><Link to="/how-it-works">How it works</Link></div>
-        <div><h6>Community</h6><Link to="/login">Member login</Link><Link to="/contact">Contact</Link></div>
       </div>
-      <div className="container footer-bottom">� 2026 Past Pupils Alumni Engagement Network</div>
+      <div className="container footer-bottom">Past Pupils Alumni Engagement Network</div>
     </footer>
   );
 }

@@ -1,7 +1,17 @@
+import "./AdminEvents.css";
+import TimeInput, { toApiTime, fromApiTime } from "../../components/common/TimeInput";
 import { useEffect, useState } from "react";
 import api from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+const eventDateValue = (date, time) => {
+  if (!date && !time.hour && !time.minute) return null;
+  if (!date) throw new Error("Select an event date.");
+  return `${date}T${toApiTime(time.hour, time.minute, time.period).slice(0, 5)}`;
+};
+
 export default function AdminEvents() {
+  const [time, setTime] = useState(() => fromApiTime(""));
+  const changeTime = (field, value) => setTime((current) => ({ ...current, [field]: value }));
   const { user } = useAuth(),
     [rows, setRows] = useState([]),
     [form, setForm] = useState({
@@ -22,14 +32,22 @@ export default function AdminEvents() {
   }, []);
   const save = (e) => {
     e.preventDefault();
+    let eventDate;
+    try {
+      eventDate = eventDateValue(form.eventDate, time);
+    } catch (error) {
+      setError(error.message);
+      return;
+    }
     const body = {
       ...form,
       createdBy: user.id,
-      eventDate: form.eventDate || null,
+      eventDate,
     };
     (editing ? api.put(`/events/${editing}`, body) : api.post("/events", body))
       .then(() => {
         setForm({ title: "", description: "", eventDate: "", location: "" });
+        setTime(fromApiTime(""));
         setEditing(null);
         load();
       })
@@ -37,10 +55,11 @@ export default function AdminEvents() {
   };
   const edit = (x) => {
     setEditing(x.id);
+    setTime(fromApiTime(x.eventDate?.slice(11)));
     setForm({
       title: x.title || "",
       description: x.description || "",
-      eventDate: x.eventDate?.slice(0, 16) || "",
+      eventDate: x.eventDate?.slice(0, 10) || "",
       location: x.location || "",
     });
   };
@@ -78,13 +97,20 @@ export default function AdminEvents() {
               onChange={(e) => setForm({ ...form, location: e.target.value })}
             />
           </div>
-          <div className="col-md-6">
+          <div className="col-md-6 event-date-field">
+            <label className="form-label d-block" htmlFor="event-date">Date</label>
             <input
+              id="event-date"
               className="form-control"
-              type="datetime-local"
+              type="date"
+              aria-label="Event date"
+              required={Boolean(time.hour || time.minute)}
               value={form.eventDate}
               onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
             />
+          </div>
+          <div className="col-md-6 event-time-field">
+            <TimeInput value={time} onChange={changeTime} required={Boolean(form.eventDate || time.hour || time.minute)} />
           </div>
           <div className="col-12">
             <textarea
@@ -128,7 +154,7 @@ export default function AdminEvents() {
                 <tr key={x.id}>
                   <td>{x.title}</td>
                   <td>
-                    {x.eventDate ? new Date(x.eventDate).toLocaleString() : "—"}
+                    {x.eventDate ? new Date(x.eventDate).toLocaleString(undefined, { hour12: true }) : "—"}
                   </td>
                   <td>{x.location || "—"}</td>
                   <td>

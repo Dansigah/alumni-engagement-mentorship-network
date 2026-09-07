@@ -1,14 +1,15 @@
 import { Link } from "react-router-dom";
 import PublicNavbar from "../../components/common/PublicNavbar";
 import Footer from "../../components/common/Footer";
+import "./Home.css";
 export default function Home() {
   return (
-    <>
-      <PublicNavbar />
+    <div className="home-landing">
+      <PublicNavbar brandName="Past Pupils" brandSubtitle="Alumni & Mentorship Network" />
       <section className="hero">
         <div className="container">
           <div className="row align-items-center min-vh-75">
-            <div className="col-lg-7">
+            <div className="col-lg-6">
               <span className="hero-kicker">Connect • Learn • Grow</span>
               <h1 className="display-4 fw-bold mt-3">
                 Where students and alumni build the future together.
@@ -29,56 +30,35 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="col-lg-5 mt-5 mt-lg-0">
-              <div className="hero-visual">
-                <i className="bi bi-people-fill" />
-                <h3>One connected community</h3>
-                <p>
-                  Students, alumni, mentors and administrators working together.
-                </p>
-              </div>
+            <div className="col-lg-6 mt-5 mt-lg-0">
+              <img
+                src="/donbasco.png"
+                alt="Don Bosco Infotech"
+                className="home-hero-image"
+              />
             </div>
           </div>
         </div>
       </section>
-      <section className="py-5 bg-white">
+      <section className="home-features">
         <div className="container">
-          <div className="text-center mb-5">
-            <h2 className="fw-bold">Everything you need to grow</h2>
-            <p className="text-muted">
-              Meaningful support at every step of your journey.
-            </p>
-          </div>
-          <div className="row g-4">
+          <div className="row g-0">
             {[
-              [
-                "bi-person-heart",
-                "Find a Mentor",
-                "Connect with alumni who can guide your academic and career journey.",
-              ],
-              [
-                "bi-briefcase",
-                "Career Referrals",
-                "Request professional referrals through trusted alumni connections.",
-              ],
-              [
-                "bi-calendar-event",
-                "Community Events",
-                "Discover workshops, reunions and networking opportunities.",
-              ],
-            ].map((x) => (
-              <div className="col-md-4" key={x[1]}>
-                <div className="card border-0 shadow-sm h-100 p-4 text-center feature-card">
-                  <i className={`bi ${x[0]}`} />
-                  <h4>{x[1]}</h4>
-                  <p className="text-muted">{x[2]}</p>
-                </div>
+              ["bi-people", "Connect", "Join a growing network of students and alumni."],
+              ["bi-book", "Learn", "Gain insights and guidance from experienced mentors."],
+              ["bi-bar-chart", "Grow", "Explore opportunities for your future."],
+              ["bi-calendar-event", "Stay Engaged", "Participate in events and activities."],
+            ].map(([icon, title, description]) => (
+              <div className="col-sm-6 col-lg-3 home-feature" key={title}>
+                <i className={`bi ${icon}`} aria-hidden="true" />
+                <h4>{title}</h4>
+                <p>{description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-      <Footer />
-    </>
+      <Footer showCommunity={false} />
+    </div>
   );
 }

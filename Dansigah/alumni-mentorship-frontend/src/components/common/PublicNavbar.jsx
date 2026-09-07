@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 
-export default function PublicNavbar() {
+export default function PublicNavbar({ brandName = "Past Pupils", brandSubtitle = "Alumni & Mentorship Network" }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -10,7 +10,7 @@ export default function PublicNavbar() {
       <div className="container">
         <Link className="navbar-brand" to="/" onClick={close}>
           <span className="brand-mark"><i className="bi bi-mortarboard-fill" /></span>
-          <span>Past Pupils<small>Alumni & Mentorship Network</small></span>
+          <span>{brandName}<small>{brandSubtitle}</small></span>
         </Link>
         <button className="navbar-toggler" type="button" aria-label="Toggle navigation" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="navbar-toggler-icon" />
